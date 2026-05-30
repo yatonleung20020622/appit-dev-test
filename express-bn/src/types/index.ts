@@ -1,7 +1,10 @@
 export interface HKWeatherData {
-  temperature: number;
-  humidity: number;
-  windSpeed: number;
-  description: string;
-  timestamp: string;
+  success: boolean;
+  data: {
+    temperature: number;
+    humidity: number;
+    windSpeed: number;
+    condition: string;
+    timestamp: string;
+  };
 }

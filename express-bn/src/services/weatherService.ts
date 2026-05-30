@@ -2,9 +2,49 @@ import https from "https";
 import type { HKWeatherData } from "../types/index.js";
 
 const WEATHER_URL =
-  "https://data.weather.gov.hk/weatherAPI/opendata/regionalForecast.php?lang=en";
+  "https://data.weather.gov.hk/weatherAPI/opendata/weather.php?dataType=rhrread&lang=en";
 
 export class WeatherService {
+  private getWeatherCondition(icon: number): string {
+    // HKO icon mapping (simplified - actual mapping may need more icons)
+    const iconMap: Record<number, string> = {
+      50: "Sunny",
+      51: "Sunny",
+      52: "Partly Cloudy",
+      53: "Partly Cloudy",
+      54: "Cloudy",
+      55: "Cloudy",
+      60: "Rainy",
+      61: "Rainy",
+      62: "Heavy Rain",
+      63: "Heavy Rain",
+      64: "Thunderstorm",
+      65: "Thunderstorm",
+      70: "Windy",
+      71: "Windy",
+      72: "Windy",
+      73: "Windy",
+      74: "Windy",
+      75: "Windy",
+      76: "Cloudy",
+      77: "Cloudy",
+      78: "Cloudy",
+      79: "Cloudy",
+      80: "Cloudy",
+      81: "Cloudy",
+      82: "Cloudy",
+      83: "Cloudy",
+      84: "Cloudy",
+      85: "Cloudy",
+      86: "Cloudy",
+      87: "Cloudy",
+      88: "Cloudy",
+      89: "Cloudy",
+      90: "Cloudy",
+    };
+    return iconMap[icon] || "Unknown";
+  }
+
   async getHKWeather(): Promise<HKWeatherData> {
     return new Promise((resolve, reject) => {
       const url = WEATHER_URL;
@@ -19,22 +59,8 @@ export class WeatherService {
 
           res.on("end", () => {
             try {
-              console.log(
-                "Raw HKO response (first 300 chars):",
-                data.slice(0, 300),
-              );
-
-              // Handle non-JSON responses with fallback
-              if (!data.includes("{")) {
-                console.log("Non-JSON response, using mock data");
-                resolve({
-                  temperature: 28.5,
-                  humidity: 75,
-                  windSpeed: 12,
-                  description:
-                    "Current weather in Hong Kong - Temperature: 28.5°C, Humidity: 75%",
-                  timestamp: new Date().toISOString(),
-                });
+              if (!data || data.trim() === "") {
+                reject(new Error("Empty response from HKO API"));
                 return;
               }
 
@@ -43,32 +69,41 @@ export class WeatherService {
               // Navigate through the HKO response structure
               let temp = 0,
                 humidity = 0,
-                windSpeed = 0;
+                windSpeed = 0,
+                condition = "Unknown";
 
-              // Check if data has station array
-              if (parsed.data?.station && Array.isArray(parsed.data.station)) {
-                const station = parsed.data.station[0];
-                if (station?.data) {
-                  // Extract values from temperature readings
-                  if (
-                    Array.isArray(station.data.temp) &&
-                    station.data.temp.length > 0
-                  ) {
-                    temp = station.data.temp[0].value || 0;
-                  }
-                  if (
-                    Array.isArray(station.data.rh) &&
-                    station.data.rh.length > 0
-                  ) {
-                    humidity = station.data.rh[0].value || 0;
-                  }
-                  if (
-                    Array.isArray(station.data.wdir) &&
-                    station.data.wdir.length > 0
-                  ) {
-                    windSpeed = station.data.wdir[0].value || 0;
-                  }
+              // Extract temperature from HKO response
+              if (
+                parsed.temperature?.data &&
+                Array.isArray(parsed.temperature.data)
+              ) {
+                const hkoTemp = parsed.temperature.data.find(
+                  (item: any) => item.place === "Hong Kong Observatory",
+                );
+                if (hkoTemp?.value) {
+                  temp = hkoTemp.value;
                 }
+              }
+
+              // Extract humidity from HKO response
+              if (
+                parsed.humidity?.data &&
+                Array.isArray(parsed.humidity.data)
+              ) {
+                const hkoHumidity = parsed.humidity.data[0];
+                if (hkoHumidity?.value) {
+                  humidity = hkoHumidity.value;
+                }
+              }
+
+              // Extract weather condition from icon
+              if (
+                parsed.icon &&
+                Array.isArray(parsed.icon) &&
+                parsed.icon.length > 0
+              ) {
+                const icon = parsed.icon[0];
+                condition = this.getWeatherCondition(icon);
               }
 
               if (temp === 0 && humidity === 0) {
@@ -81,11 +116,14 @@ export class WeatherService {
               }
 
               resolve({
-                temperature: temp,
-                humidity: humidity,
-                windSpeed: windSpeed,
-                description: `Current weather in Hong Kong - Temperature: ${temp}°C, Humidity: ${humidity}%`,
-                timestamp: new Date().toISOString(),
+                success: true,
+                data: {
+                  temperature: temp,
+                  humidity: humidity,
+                  windSpeed: windSpeed,
+                  condition: condition,
+                  timestamp: new Date().toISOString(),
+                },
               });
             } catch (error) {
               console.error("Parse error details:", error);
