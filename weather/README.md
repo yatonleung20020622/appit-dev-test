@@ -1,4 +1,12 @@
-# Getting Started with Create React App
+# Hong Kong Weather App
+
+A React weather application that displays current weather information for Hong Kong, fetching data from the Hong Kong Observatory API.
+
+## Screenshot
+
+![Weather App Screenshot](./image.png)
+
+## Getting Started with Create React App
 
 This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
 
